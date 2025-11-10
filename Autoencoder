@@ -1,0 +1,61 @@
+# Assignment 4: Anomaly Detection using Autoencoder
+# Step a) Import Required Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from keras.models import Model, Sequential
+from keras.layers import Dense, Input
+from sklearn.model_selection import train_test_split
+# Step b) Load Dataset (ECG dataset)
+# If you have ECG.csv in your folder, use this:
+data = pd.read_csv("ecg.csv", header=None)
+# Separate features and labels
+X = data.drop(columns=[140])   # First 140 columns = signal values
+y = data[140]                  # Last column = label
+# Keep only NORMAL data (label = 1) for training the Autoencoder
+X_normal = X[y == 1]
+X_anomaly = X[y == 0]
+# Train-Test Split
+X_train, X_test = train_test_split(X_normal, test_size=0.2, random_state=42)
+# Convert to numpy arrays and normalize
+X_train = X_train.values / np.max(X_train.values)
+X_test_normal = X_test.values / np.max(X_train.values)
+X_test_anomaly = X_anomaly.values / np.max(X_train.values)
+# Step c) Define Encoder-Decoder (Autoencoder Model)
+input_dim = X_train.shape[1]
+encoding_dim = 32  # Compressed size
+# Encoder
+input_layer = Input(shape=(input_dim,))
+encoder = Dense(64, activation='relu')(input_layer)
+encoder = Dense(32, activation='relu')(encoder)
+# Bottleneck layer
+code = Dense(encoding_dim, activation='relu')(encoder)
+# Decoder
+decoder = Dense(32, activation='relu')(code)
+decoder = Dense(64, activation='relu')(decoder)
+decoder = Dense(input_dim, activation='sigmoid')(decoder)
+# Build Model
+autoencoder = Model(inputs=input_layer, outputs=decoder)
+# Step d) Compile Model
+autoencoder.compile(optimizer='adam', loss='mse')
+# Step e) Train the Model
+history = autoencoder.fit(X_train, X_train,
+                          epochs=20,
+                          batch_size=32,
+                          validation_split=0.2,
+                          verbose=1)
+# Step f) Evaluate (Reconstruction Error)
+recon_normal = autoencoder.predict(X_test_normal)
+recon_anomaly = autoencoder.predict(X_test_anomaly)
+mse_normal = np.mean(np.power(X_test_normal - recon_normal, 2), axis=1)
+mse_anomaly = np.mean(np.power(X_test_anomaly - recon_anomaly, 2), axis=1)
+print("Average Reconstruction Error for Normal Data:", np.mean(mse_normal))
+print("Average Reconstruction Error for Anomaly Data:", np.mean(mse_anomaly))
+# Plot Loss Curve
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Training Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epochs')
+plt.legend(['Train Loss', 'Validation Loss'])
+plt.show()
