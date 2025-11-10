@@ -1,0 +1,54 @@
+# Assignment 6: Object Detection / Classification using Transfer Learning (VGG16)
+
+from keras.applications.vgg16 import VGG16
+from keras.models import Sequential
+from keras.layers import Dense, Flatten
+from keras.preprocessing.image import ImageDataGenerator
+
+# Step 1: Load Pre-Trained VGG16 (Exclude top layers)
+vgg = VGG16(include_top=False, input_shape=(224,224,3), weights='imagenet')
+
+# Freeze base layers
+for layer in vgg.layers:
+    layer.trainable = False
+
+# Step 2: Add Custom Classification Layers
+model = Sequential([
+    vgg,
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Step 3: Load Images (Put images inside: train/ and test/ folders)
+train_data = ImageDataGenerator(rescale=1./255).flow_from_directory(
+    "train/", target_size=(224,224), batch_size=32, class_mode='categorical')
+
+test_data = ImageDataGenerator(rescale=1./255).flow_from_directory(
+    "test/", target_size=(224,224), batch_size=32, class_mode='categorical')
+
+# Step 4: Train the Model
+model.fit(train_data, epochs=5, validation_data=test_data)
+
+print("✅ Transfer Learning Model Training Completed")# Step 5: Fine-Tune Hyperparameters and Unfreeze Top Layers
+
+# Unfreeze last few convolutional layers of VGG16
+for layer in vgg.layers[-4:]:   # you can adjust number of layers (e.g., -8 for more)
+    layer.trainable = True
+
+# Recompile with a smaller learning rate for fine-tuning
+from keras.optimizers import Adam
+model.compile(optimizer=Adam(learning_rate=1e-5),  # lower learning rate
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Continue training (fine-tuning)
+fine_tune_history = model.fit(
+    train_data,
+    epochs=3,
+    validation_data=test_data
+)
+
+print("✅ Fine-tuning completed successfully.")
