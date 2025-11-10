@@ -1,0 +1,46 @@
+# Assignment 5 : Continuous Bag of Words (CBOW) Model
+
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense, Embedding, Lambda
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import skipgrams
+import keras.backend as K
+
+# Sample text data
+text = "machine learning is fun and deep learning is powerful"
+
+# Step 1: Tokenize
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts([text])
+word_index = tokenizer.word_index
+vocab_size = len(word_index) + 1
+
+sequences = tokenizer.texts_to_sequences([text])[0]
+
+# Step 2: Generate CBOW Training Data
+window_size = 2
+data = []
+labels = []
+
+for i in range(window_size, len(sequences) - window_size):
+    context = [sequences[i - 2], sequences[i - 1], sequences[i + 1], sequences[i + 2]]
+    target = sequences[i]
+    data.append(context)
+    labels.append(target)
+
+data = np.array(data)
+labels = np.array(labels)
+
+# Step 3: Build CBOW Model
+model = Sequential()
+model.add(Embedding(input_dim=vocab_size, output_dim=8, input_length=4))
+model.add(Lambda(lambda x: K.mean(x, axis=1)))
+model.add(Dense(vocab_size, activation='softmax'))
+
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+
+# Step 4: Train the Model
+model.fit(data, labels, epochs=100, verbose=0)
+
+print("✅ CBOW Training Completed")
